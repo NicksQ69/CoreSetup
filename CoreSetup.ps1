@@ -21,6 +21,9 @@ $startY = 30        # Position de départ pour la première ligne
 # Tableau pour stocker les CheckBox
 $checkBoxes = @()
 
+# Chemin de l'exécutable choisi
+$execPathFile = ""
+
 # Ajout des CheckBox
 for ($i = 0; $i -lt [Environment]::ProcessorCount; $i++) {
     $checkBox = New-Object System.Windows.Forms.CheckBox
@@ -58,6 +61,7 @@ $browseButton.Add_Click({
     
     if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $selectedFileLabel.Text = $openFileDialog.FileName
+        $global:execPathFile = $openFileDialog.FileName
     }
 })
 $mainForm.Controls.Add($browseButton)
@@ -74,9 +78,22 @@ $button.Text = "Launch"
 $button.Location = [System.Drawing.Point]::new(10, $startY + ($maxRows * 20) + 50)
 $button.AutoSize = $true
 $button.Add_Click({
-    $binaryValue = Get-CoreSelectionBinaryValue
-    [System.Windows.Forms.MessageBox]::Show("Valeur binaire: $binaryValue")
+    if ($global:execPathFile -ne "") {
+        $anyChecked = $checkBoxes | ForEach-Object { $_.Checked } | Where-Object { $_ -eq $true }
+        if ($anyChecked) {
+            $binaryValue = Get-CoreSelectionBinaryValue
+            $process = Start-Process -FilePath $execPathFile -PassThru
+            Start-Sleep -Seconds 5
+            $process.ProcessorAffinity = $binaryValue
+            $mainForm.Close()
+            [System.Windows.Forms.Application]::Exit()
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("Please select at least one core.")
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Please select an executable file.")
+    }
 })
 $mainForm.Controls.Add($button)
 
-$mainForm.ShowDialog()
+$mainForm.ShowDialog() | Out-Null
