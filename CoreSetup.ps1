@@ -12,23 +12,30 @@ $labelCore.Location = New-Object System.Drawing.Point(10,10)
 $labelCore.AutoSize = $true
 $mainForm.Controls.Add($labelCore)
 
-# Constantes pour la disposition
+# Layout constants
 $maxRows = 4
-$columnWidth = 100  # Largeur de chaque colonne
-$startX = 10        # Position de départ pour la première colonne
-$startY = 30        # Position de départ pour la première ligne
+$columnWidth = 100  # Width of each column
+$startX = 10        # Starting position for first column
+$startY = 30        # Starting position for the first line
 
-# Tableau pour stocker les CheckBox
+$priorityValue = @{
+    "Below Normal" = 16384;
+    "Normal" = 32;
+    "Above Normal" = 32768;
+    "High Priority" = 128;
+    "Realtime" = 256;
+}
+
+# Table for storing CheckBoxes
 $checkBoxes = @()
 
-# Chemin de l'exécutable choisi
+# Path of selected executable
 $execPathFile = ""
 
-# Ajout des CheckBox
 for ($i = 0; $i -lt [Environment]::ProcessorCount; $i++) {
     $checkBox = New-Object System.Windows.Forms.CheckBox
     $checkBox.Text = "Core $i"
-    # Calcul de la position en fonction de l'index
+    # Position calculation based on index
     $columnIndex = [math]::Floor($i / $maxRows)
     $rowIndex = $i % $maxRows
     $checkBox.Location = [System.Drawing.Point]::new($startX + $columnWidth * $columnIndex, $startY + $rowIndex * 20)
@@ -37,21 +44,35 @@ for ($i = 0; $i -lt [Environment]::ProcessorCount; $i++) {
     $checkBoxes += $checkBox
 }
 
-# Fonction pour obtenir la valeur binaire en fonction des CheckBox sélectionnées
+# Function to obtain the binary value according to the selected CheckBoxes
 function Get-CoreSelectionBinaryValue {
     $binaryValue = 0
     for ($i = 0; $i -lt $checkBoxes.Count; $i++) {
         if ($checkBoxes[$i].Checked) {
-            # Utilisation de l'opération binaire OR pour définir le bit correspondant
+            # Use the OR binary operation to define the corresponding bit
             $binaryValue = $binaryValue -bor (1 -shl $i)
         }
     }
     return $binaryValue
 }
 
-# Créer un bouton pour ouvrir la boîte de dialogue de sélection de fichier
+$boxLabel = New-Object System.Windows.Forms.Label
+$boxLabel.Text = "Set priority value :"
+$boxLabel.Location = [System.Drawing.Point]::new(10, $startY + ($maxRows * 20) + 12)
+$boxLabel.AutoSize = $true
+$mainForm.Controls.Add($boxLabel)
+
+$ComboBox = New-Object System.Windows.Forms.ComboBox
+$ComboBox.Width = 100
+foreach ($priority in $priorityValue.keys) {
+    $ComboBox.Items.Add($priority) | Out-Null;
+}
+$ComboBox.Location = [System.Drawing.Point]::new(105, $startY + ($maxRows * 20) + 10)
+$comboBox.SelectedIndex = 4
+$mainForm.Controls.Add($ComboBox)
+
 $browseButton = New-Object System.Windows.Forms.Button
-$browseButton.Location = [System.Drawing.Point]::new(10, $startY + ($maxRows * 20) + 10)
+$browseButton.Location = [System.Drawing.Point]::new(10, $startY + ($maxRows * 20) + 40)
 $browseButton.AutoSize = $true
 $browseButton.Text = 'Browse...'
 $browseButton.Add_Click({
@@ -66,27 +87,30 @@ $browseButton.Add_Click({
 })
 $mainForm.Controls.Add($browseButton)
 
-# Ajouter un label pour afficher le chemin du fichier sélectionné
 $selectedFileLabel = New-Object System.Windows.Forms.Label
-$selectedFileLabel.Location =  [System.Drawing.Point]::new(100, $startY + ($maxRows * 20) + 15)
+$selectedFileLabel.Location =  [System.Drawing.Point]::new(100, $startY + ($maxRows * 20) + 45)
 $selectedFileLabel.AutoSize = $true
 $mainForm.Controls.Add($selectedFileLabel)
 
-# Bouton pour obtenir le résultat
 $button = New-Object System.Windows.Forms.Button
 $button.Text = "Launch"
-$button.Location = [System.Drawing.Point]::new(10, $startY + ($maxRows * 20) + 50)
+$button.Location = [System.Drawing.Point]::new(10, $startY + ($maxRows * 20) + 78)
 $button.AutoSize = $true
 $button.Add_Click({
     if ($global:execPathFile -ne "") {
         $anyChecked = $checkBoxes | ForEach-Object { $_.Checked } | Where-Object { $_ -eq $true }
         if ($anyChecked) {
-            $binaryValue = Get-CoreSelectionBinaryValue
-            $process = Start-Process -FilePath $execPathFile -PassThru
-            Start-Sleep -Seconds 5
-            $process.ProcessorAffinity = $binaryValue
-            $mainForm.Close()
-            [System.Windows.Forms.Application]::Exit()
+            if ($ComboBox.SelectedItem -ne $null) {
+                $binaryValue = Get-CoreSelectionBinaryValue
+                $process = Start-Process -FilePath $execPathFile -PassThru
+                Start-Sleep -Seconds 5
+                $process.PriorityClass = $priorityValue[$ComboBox.SelectedItem]
+                $process.ProcessorAffinity = $binaryValue
+                $mainForm.Close()
+                [System.Windows.Forms.Application]::Exit()
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("Please select a priority value.")
+            }
         } else {
             [System.Windows.Forms.MessageBox]::Show("Please select at least one core.")
         }
