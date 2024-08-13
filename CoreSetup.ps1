@@ -68,7 +68,7 @@ foreach ($priority in $priorityValue.keys) {
     $ComboBox.Items.Add($priority) | Out-Null;
 }
 $ComboBox.Location = [System.Drawing.Point]::new(105, $startY + ($maxRows * 20) + 10)
-$comboBox.SelectedIndex = 4
+$comboBox.SelectedIndex = 1
 $mainForm.Controls.Add($ComboBox)
 
 $browseButton = New-Object System.Windows.Forms.Button
@@ -103,9 +103,19 @@ $button.Add_Click({
             if ($ComboBox.SelectedItem -ne $null) {
                 $binaryValue = Get-CoreSelectionBinaryValue
                 $process = Start-Process -FilePath $execPathFile -PassThru
-                Start-Sleep -Seconds 5
-                $process.PriorityClass = $priorityValue[$ComboBox.SelectedItem]
-                $process.ProcessorAffinity = $binaryValue
+                while ($process.HasExited -eq $false -and $process.MainWindowHandle -eq 0) {
+                    Start-Sleep -Seconds 5
+                }
+                $processName = [System.IO.Path]::GetFileNameWithoutExtension($execPathFile)
+                $processes = Get-Process -Name $processName
+                foreach ($proc in $processes) {
+                    try {
+                        $proc.PriorityClass = $priorityValue[$ComboBox.SelectedItem]
+                        $proc.ProcessorAffinity = $binaryValue
+                    } catch {
+                        Write-Host "Error while modifying the process $($proc.Id) : $_"
+                    }
+                }
                 $mainForm.Close()
                 [System.Windows.Forms.Application]::Exit()
             } else {
