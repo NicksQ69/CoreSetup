@@ -112,6 +112,8 @@ $browseButton.Add_Click({
 })
 $mainForm.Controls.Add($browseButton)
 
+$xmlFile = "CoreSetupData.xml"
+
 $exeComboBox = New-Object System.Windows.Forms.ComboBox
 $exeComboBox.Width = 450
 $exeComboBox.Location = [System.Drawing.Point]::new(100, $startY + ($maxRows * 20) + 41)
@@ -119,6 +121,13 @@ $exeComboBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
 $exeComboBox.AutoCompleteMode = [System.Windows.Forms.AutoCompleteMode]::None
 $exeComboBox.AutoCompleteSource = [System.Windows.Forms.AutoCompleteSource]::ListItems
 $mainForm.Controls.Add($exeComboBox)
+
+if (Test-Path $xmlFile) {
+    $loadedItems = Import-CliXml -Path $xmlFile
+    foreach ($item in $loadedItems) {
+        $exeComboBox.Items.Add($item) | Out-Null
+    }
+}
 
 $button = New-Object System.Windows.Forms.Button
 $button.Text = "Launch"
@@ -156,5 +165,11 @@ $button.Add_Click({
     }
 })
 $mainForm.Controls.Add($button)
+
+$mainForm.Add_FormClosing({
+    param($sender, $e)    
+    $items = $exeComboBox.Items | ForEach-Object { $_.ToString() }
+    $items | Export-CliXml -Path $xmlFile
+})
 
 $mainForm.ShowDialog() | Out-Null
