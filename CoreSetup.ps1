@@ -12,11 +12,33 @@ $labelCore.Location = New-Object System.Drawing.Point(10,10)
 $labelCore.AutoSize = $true
 $mainForm.Controls.Add($labelCore)
 
+$checkAllButton = New-Object System.Windows.Forms.Button
+$checkAllButton.Location = New-Object System.Drawing.Point(10,30)
+$checkAllButton.AutoSize = $true
+$checkAllButton.Text = 'Check All'
+$checkAllButton.Add_Click({
+    foreach ($checkBox in $checkBoxes) {
+        $checkBox.Checked = $true
+    }
+})
+$mainForm.Controls.Add($checkAllButton)
+
+$uncheckAllButton = New-Object System.Windows.Forms.Button
+$uncheckAllButton.Location = New-Object System.Drawing.Point(100,30)
+$uncheckAllButton.AutoSize = $true
+$uncheckAllButton.Text = 'Uncheck All'
+$uncheckAllButton.Add_Click({
+    foreach ($checkBox in $checkBoxes) {
+        $checkBox.Checked = $false
+    }
+})
+$mainForm.Controls.Add($uncheckAllButton)
+
 # Layout constants
 $maxRows = 4
 $columnWidth = 100  # Width of each column
 $startX = 10        # Starting position for first column
-$startY = 30        # Starting position for the first line
+$startY = 65        # Starting position for the first line
 
 $priorityValue = @{
     "Below Normal" = 16384;
@@ -79,24 +101,31 @@ $browseButton.Add_Click({
     $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openFileDialog.Filter = "Executable (*.exe)|*.exe"
     $openFileDialog.InitialDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::MyComputer)
-    
     if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $selectedFileLabel.Text = $openFileDialog.FileName
-        $global:execPathFile = $openFileDialog.FileName
+        $selectedPath = $openFileDialog.FileName
+        if (-not $exeComboBox.Items.Contains($selectedPath)) {
+            $exeComboBox.Items.Add($selectedPath) | Out-Null
+        }
+        $exeComboBox.Text = $selectedPath
+        $global:execPathFile = $selectedPath
     }
 })
 $mainForm.Controls.Add($browseButton)
 
-$selectedFileLabel = New-Object System.Windows.Forms.Label
-$selectedFileLabel.Location =  [System.Drawing.Point]::new(100, $startY + ($maxRows * 20) + 45)
-$selectedFileLabel.AutoSize = $true
-$mainForm.Controls.Add($selectedFileLabel)
+$exeComboBox = New-Object System.Windows.Forms.ComboBox
+$exeComboBox.Width = 450
+$exeComboBox.Location = [System.Drawing.Point]::new(100, $startY + ($maxRows * 20) + 41)
+$exeComboBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+$exeComboBox.AutoCompleteMode = [System.Windows.Forms.AutoCompleteMode]::None
+$exeComboBox.AutoCompleteSource = [System.Windows.Forms.AutoCompleteSource]::ListItems
+$mainForm.Controls.Add($exeComboBox)
 
 $button = New-Object System.Windows.Forms.Button
 $button.Text = "Launch"
 $button.Location = [System.Drawing.Point]::new(10, $startY + ($maxRows * 20) + 78)
 $button.AutoSize = $true
 $button.Add_Click({
+    $global:execPathFile = $exeComboBox.Text
     if ($global:execPathFile -ne "") {
         $anyChecked = $checkBoxes | ForEach-Object { $_.Checked } | Where-Object { $_ -eq $true }
         if ($anyChecked) {
@@ -116,8 +145,6 @@ $button.Add_Click({
                         Write-Host "Error while modifying the process $($proc.Id) : $_"
                     }
                 }
-                $mainForm.Close()
-                [System.Windows.Forms.Application]::Exit()
             } else {
                 [System.Windows.Forms.MessageBox]::Show("Please select a priority value.")
             }
