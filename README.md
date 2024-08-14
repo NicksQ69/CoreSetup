@@ -1,5 +1,7 @@
 # CoreSetup
 
+<img src="favicon.ico">
+
 ## How to build the application as a Windows executable
 
 ### Prerequisites :
